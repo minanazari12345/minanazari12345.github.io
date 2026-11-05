@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Implant Order Scanner | Mina Nazari</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef3f7;color:#162639;font:16px system-ui,sans-serif}header{background:#142238;color:white;padding:30px 20px}header>div,main{max-width:860px;margin:auto}header a{color:#9ae9e0}header p{color:#d6e4ef}h1{margin:12px 0}main{padding:20px}section{background:white;border:1px solid #d6e0e8;border-radius:12px;padding:18px;margin-bottom:14px}h2{margin:0 0 12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}label{display:grid;gap:4px;font-weight:650}input,button,a.button{font:inherit;border:1px solid #a9bbc9;border-radius:7px;padding:8px 10px;background:white;color:#152e43}button,a.button{cursor:pointer;font-weight:650}a.button{text-decoration:none}.primary{background:#00695f;color:white;border-color:#00695f}input[type=number]{width:90px}video{display:block;max-width:100%;max-height:260px;margin:10px 0;background:#142238}[hidden]{display:none!important}table{border-collapse:collapse;width:100%;text-align:left}th,td{border-bottom:1px solid #d6e0e8;padding:9px 6px}.table{overflow:auto}small,#feedback{color:#38566b}#feedback{min-height:24px;margin-bottom:12px}
+</style>
+</head><body>
+<header><div><a href="../index.html#work">← Back to portfolio</a><h1>Implant Order Scanner</h1><p>Portfolio demo · Use sample items or a fictional barcode to build a draft order.</p></div></header>
+<main>
+<section><h2>Scan or enter an item</h2>
+<form id="add" class="row"><label>Barcode or VMID<input id="code" required maxlength="50" autocomplete="off" placeholder="e.g. DEMO-101"></label><label>Quantity<input id="quantity" type="number" min="1" max="999" value="1" required></label><button class="primary">Add to order</button></form>
+<p><small>USB barcode readers that type into a field can scan into the Barcode or VMID box. Camera scanning requires a supported browser and camera access.</small></p>
+<div class="row"><button id="camera">Start camera</button><button id="stop" hidden>Stop camera</button><button id="sample">Load sample order</button></div>
+<video id="video" autoplay muted playsinline hidden></video>
+</section>
+<div id="feedback" role="status"></div>
+<section><h2>Draft order</h2><p id="total"></p><div id="order"></div>
+<div class="row" id="exports" hidden><button id="copy">Copy order</button><button id="csv">Export CSV</button><a class="button" id="email">Open email draft</a><button id="clear">Clear order</button></div>
+</section><small>Use fictional items only. The demo opens an email draft for review and keeps the order in the current page until it is refreshed.</small>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id);
+const catalogue={'DEMO-101':'Cortical screw','DEMO-202':'Locking screw','DEMO-303':'Small plate'};
+const order=new Map();
+const status=message=>{$('feedback').textContent=message};
+function description(code){return Object.hasOwn(catalogue,code)?catalogue[code]:'Demo item'}
+function add(code,quantity){
+ code=code.trim().toUpperCase();
+ if(!/^[A-Z0-9][A-Z0-9._/+:-]{0,49}$/.test(code)||!Number.isInteger(quantity)||quantity<1||quantity>999){status('Enter a valid item code and a quantity from 1 to 999.');return false}
+ const next=(order.get(code)||0)+quantity;
+ if(next>999){status('The total for an item cannot exceed 999.');return false}
+ order.set(code,next);render();status(code+' added to the draft order.');return true
+}
+const summary=()=>['Implant order demo',...Array.from(order,([code,q])=>code+' | '+description(code)+' | Qty '+q)].join('\n');
+function render(){
+ $('order').replaceChildren();
+ $('total').textContent=order.size+' item codes · '+[...order.values()].reduce((a,b)=>a+b,0)+' units';
+ $('exports').hidden=!order.size;
+ if(!order.size){$('order').textContent='No items added yet.';return}
+ const table=document.createElement('table'), header=table.createTHead().insertRow(), body=table.createTBody();
+ for(const name of ['VMID / barcode','Description','Quantity','Action']){const th=document.createElement('th');th.scope='col';th.textContent=name;header.append(th)}
+ for(const [code,q] of order){
+  const row=body.insertRow();row.insertCell().textContent=code;row.insertCell().textContent=description(code);
+  const input=document.createElement('input');input.type='number';input.min=1;input.max=999;input.value=q;input.setAttribute('aria-label','Quantity for '+code);
+  input.onchange=()=>{const next=input.valueAsNumber;if(!input.checkValidity()||!Number.isInteger(next)){input.value=q;status('Enter a quantity from 1 to 999.');return}order.set(code,next);render();status('Quantity updated for '+code+'.')};
+  row.insertCell().append(input);const remove=document.createElement('button');remove.textContent='Remove';remove.setAttribute('aria-label','Remove '+code);remove.onclick=()=>{order.delete(code);render();status(code+' removed.')};row.insertCell().append(remove)
+ }
+ const wrap=document.createElement('div');wrap.className='table';wrap.append(table);$('order').append(wrap);
+ $('email').href='mailto:?subject='+encodeURIComponent('Implant order demo')+'&body='+encodeURIComponent(summary())
+}
+$('add').onsubmit=e=>{e.preventDefault();if(add($('code').value,$('quantity').valueAsNumber)){$('code').value='';$('quantity').value=1;$('code').focus()}};
+$('sample').onclick=()=>{if(order.size&&!confirm('Replace the current draft with sample items?'))return;order.clear();order.set('DEMO-101',2);order.set('DEMO-202',3);order.set('DEMO-303',1);render();status('Sample order loaded. You can edit quantities or remove items.')};
+$('clear').onclick=()=>{if(confirm('Clear this draft order?')){order.clear();render();status('Draft cleared.')}};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(summary());status('Draft copied.')}catch{status('Clipboard access unavailable. Use Export CSV or Open email draft.')}};
+$('csv').onclick=()=>{const csv=['VMID,Description,Quantity',...Array.from(order,([code,q])=>code+','+description(code)+','+q)].join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='implant-order-demo.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('CSV exported.')};
+let stream=null;
+function stop(){
+ if(stream)stream.getTracks().forEach(track=>track.stop());
+ stream=null;$('video').srcObject=null;$('video').hidden=true;$('stop').hidden=true;$('camera').disabled=false
+}
+$('stop').onclick=()=>{stop();status('Camera stopped.')};
+$('camera').onclick=async()=>{
+ if(!('BarcodeDetector' in window)||!navigator.mediaDevices?.getUserMedia){status('Camera barcode scanning is unavailable in this browser. Try manual entry, a USB scanner, or the sample order.');return}
+ $('camera').disabled=true;
+ try{
+  const detector=new window.BarcodeDetector();
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  const active=stream;
+  $('video').srcObject=stream;$('video').hidden=false;$('stop').hidden=false;status('Point the camera at a fictional barcode.');
+  async function scan(){
+   if(stream!==active)return;
+   try{
+    if($('video').readyState>=2){
+     const [match]=await detector.detect($('video'));
+     if(stream!==active)return;
+     if(match){stop();$('code').value=match.rawValue;$('quantity').focus();status('Barcode captured. Enter the quantity and select Add to order.');return}
+    }
+    setTimeout(scan,160)
+   }catch{if(stream===active){stop();status('The barcode could not be read. Try manual entry or the sample order.')}}
+  }
+  scan()
+ }catch{stop();status('Camera access was unavailable. Try manual entry or the sample order.')}
+};
+window.addEventListener('pagehide',stop);render();
+</script></body></html>
