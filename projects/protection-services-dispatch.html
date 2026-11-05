@@ -1,0 +1,160 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Protection Services Dispatch & Analytics</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef3f7;color:#162639;font:15px system-ui,sans-serif}header{background:#12283d;color:white;padding:32px max(5vw,16px)}h1{font-size:clamp(24px,4vw,39px);margin:8px 0}h2{margin:0 0 12px}h3{margin:0 0 8px}p{line-height:1.55}header p{color:#c9d9e7;margin-bottom:0}.eyebrow{letter-spacing:.14em;font-size:12px;font-weight:800;color:#74e4ce}main{max-width:1280px;margin:auto;padding:18px clamp(12px,3vw,32px) 40px}nav,.row,form{display:flex;align-items:end;gap:10px;flex-wrap:wrap}nav{margin-bottom:18px}nav button[aria-current=true]{background:#123750;color:white}button,input,select{font:inherit;border:1px solid #abbcc9;border-radius:7px;padding:8px 11px;background:white;color:#152e43}button{cursor:pointer;font-weight:650}button:hover{border-color:#087b73}button.primary{background:#00695f;color:white;border-color:#00695f}button:disabled{opacity:.55;cursor:default}label{display:grid;gap:5px;font-size:13px;font-weight:650}input,select{min-width:0;max-width:100%}section,.card{background:white;border:1px solid #d6e0e8;border-radius:12px;padding:18px;margin-bottom:14px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.metric{font-size:27px;font-weight:780;margin-top:5px}.muted,small{color:#486174}.table{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left}th,td{padding:10px;border-bottom:1px solid #e0e8ee;vertical-align:top}th{background:#edf3f7;font-size:13px}td button{margin:2px}.tag{display:inline-block;border-radius:12px;padding:3px 8px;background:#dff3ee;color:#00574e;font-size:12px;font-weight:750}.alert{background:#ffeadc;color:#8b350b}.banner{background:#e1f4f0;border-left:4px solid #08796c;padding:10px 14px;margin:12px 0}.spacer{flex:1}summary{cursor:pointer}.bars{min-width:120px;display:flex;height:9px;background:#edf3f7;margin-top:6px;border-radius:8px;overflow:hidden}.wait{background:#e59453}.travel{background:#08796c}[hidden]{display:none!important}footer{color:#486174}#feedback{min-height:23px;color:#00695f;font-weight:650} @media print{header,nav,footer,#feedback,button{display:none!important}body{background:white}section{border:0}}
+</style>
+<header><div class="eyebrow">PORTFOLIO SIMULATION · VERSION 2</div><h1>Protection Services Dispatch & Analytics</h1><p>Three fictional hospital sites. Follow calls from intake to closure and see where response delays occur.</p></header>
+<main>
+<p><a href="../index.html#work">← Back to portfolio projects</a></p>
+<nav aria-label="Workspace"><button data-view="dispatch">Dispatch</button><button data-view="analytics">Analytics</button><button data-view="quality">Data quality</button><button data-view="improve">Improvement & brief</button><span class="spacer"></span><button id="csv">Export all calls CSV</button><button id="reset">Reset demo</button></nav>
+<div id="feedback" role="status"></div>
+<div id="dispatch" class="view">
+<section><h2>Log a call</h2><form id="intake">
+<label>Site<select name="site" required></select></label>
+<label>Location<input name="location" placeholder="e.g. North entrance" required maxlength="60"></label>
+<label>Call type<select name="type"><option>Access alarm</option><option>Staff safety request</option><option>Patrol request</option></select></label>
+<label>Priority<select name="priority"></select></label>
+<button class="primary">Add to queue</button></form></section>
+<section><h2>Active dispatch queue</h2><div id="queue"></div><details><summary>Demo thresholds and alert rules</summary><p class="muted">Minutes from call receipt to arrival. Active calls without an arrival flag when elapsed time exceeds the target. Acknowledging records review and leaves the overdue flag visible until arrival.</p><form id="targets"></form></details></section>
+<section><h2>Recent closures</h2><div id="recent"></div></section>
+</div>
+<div id="analytics" class="view" hidden>
+<section><h2>Response performance</h2><div class="row" id="filters"></div><p class="muted">Response runs from receipt to arrival. Time metrics use valid arrivals, including calls still on scene. Targets are configurable demo values.</p><button id="scenario">Show overnight high-priority calls</button></section>
+<div class="cards" id="metrics"></div>
+<section><h2>Benchmark by site</h2><p class="muted">Bars show average minutes by phase on a shared scale. Orange = receipt to dispatch. Teal = dispatch to arrival. The median is calculated separately from total response times.</p><div id="benchmark"></div></section>
+</div>
+<div id="quality" class="view" hidden><section><h2>Data quality review</h2><p>Review duplicate call IDs, missing required timestamps, and timestamps out of sequence. The first record for each ID is retained as the original. Calls awaiting arrival remain pending.</p><div id="issues"></div></section></div>
+<div id="improve" class="view" hidden>
+<section><h2>Improvement tracker</h2><form id="action">
+<label>Action<input name="title" maxlength="100" required></label><label>Owner<input name="owner" maxlength="50" required></label><label>Due date<input name="due" type="date" required></label><label>Success measure<input name="measure" maxlength="100" required></label><button class="primary">Add action</button>
+</form><div id="actions"></div></section>
+<section><h2>Executive brief</h2><div id="brief"></div><button id="print">Print / Save PDF</button></section>
+</div>
+<footer>Independent portfolio prototype. All records and sites are fictional. Changes are saved in this browser when local storage is available. Use fictional details only.</footer></main>
+<script>
+'use strict';
+const sites=['Cedar Hospital','Harbour Hospital','Summit Hospital'];
+const priorities=['High','Medium','Low'];
+const shifts=['Day','Evening','Overnight'];
+const stages=['New','Dispatched','On Scene','Closed'];
+const pilot='Overnight call routing pilot';
+const minute=60000, day=1440*minute;
+const key='protection-dispatch-v2-1';
+const $=id=>document.getElementById(id);
+const safe=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when=t=>t==null?'—':new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const shift=t=>{const hour=new Date(t).getHours();return hour>=7&&hour<15?'Day':hour>=15&&hour<23?'Evening':'Overnight'};
+const today=()=>new Date().toISOString().slice(0,10);
+function seed(){
+ const calls=[];const now=Date.now();
+ for(let d=1;d<=14;d++) for(let s=0;s<sites.length;s++) for(let h=0;h<3;h++){
+  const date=new Date(now);date.setDate(date.getDate()-d);date.setHours([9,17,2][h],(s*7+d)%60,0,0);
+  const received=+date, pre=d>7, priority=h===2?'High':priorities[(d+h+s)%3];
+  const wait=s===1&&h===2?(pre?8:3)+d%3:1+(d+s)%3;
+  const dispatched=received+wait*minute, arrived=dispatched+(3+(d+s)%3)*minute;
+  calls.push({id:'PS-'+String(calls.length+1).padStart(4,'0'),site:sites[s],location:['Main entrance','East lobby','Service entrance'][s],type:['Staff safety request','Patrol request','Access alarm'][h],priority,received,dispatched,arrived,closed:arrived+4*minute,status:'Closed',period:pre?'Baseline':'Pilot'});
+ }
+ calls.push({...calls[0]},{...calls[1],id:'DQ-01',arrived:null},{...calls[2],id:'DQ-02',arrived:calls[2].dispatched-minute});
+ for(let i=0;i<3;i++){const received=now-[15,4,1][i]*minute;calls.push({id:'PS-'+(200+i),site:sites[i],location:'North entrance',type:'Access alarm',priority:priorities[i],received,dispatched:i===1?received+minute:null,status:i===1?'Dispatched':'New'});}
+ return {calls,targets:{High:10,Medium:18,Low:25},actions:[{title:pilot,owner:'Dispatch Lead',due:new Date(now+7*day).toISOString().slice(0,10),measure:'Bring median receipt-to-dispatch time to 5 minutes or less for Harbour overnight high-priority calls.',status:'In progress'}],next:300};
+}
+function load(){try{return JSON.parse(localStorage.getItem(key))||seed()}catch{return seed()}}
+let state=load(), current='dispatch';
+function save(message){try{localStorage.setItem(key,JSON.stringify(state))}catch{message+=' Browser storage unavailable. Changes last for this session.'}$('feedback').textContent=message;render()}
+function options(values){return values.map(v=>'<option>'+safe(v)+'</option>').join('')}
+$('intake').site.innerHTML=options(sites);$('intake').priority.innerHTML=options(priorities);
+const filters=[['site','Site',sites],['shift','Shift',shifts],['priority','Priority',priorities],['period','Period',['Baseline','Pilot','Live demo']]];
+$('filters').innerHTML=filters.map(([id,label,values])=>'<label>'+label+'<select id="f-'+id+'"><option value="">All</option>'+options(values)+'</select></label>').join('');
+$('filters').addEventListener('change',render);
+function classify(){
+ const seen=new Set();
+ return state.calls.map(c=>{
+  const issues=[];
+  if(seen.has(c.id))issues.push('Duplicate call ID');
+  seen.add(c.id);
+  const required=['received','dispatched','arrived','closed'].slice(0,stages.indexOf(c.status)+1);
+  const times=required.map(field=>c[field]);
+  if(times.some(t=>!Number.isFinite(t)))issues.push('Missing required timestamp');
+  if(times.some((t,i)=>i&&Number.isFinite(t)&&Number.isFinite(times[i-1])&&t<times[i-1]))issues.push('Timestamps out of sequence');
+  return {c,issues};
+ });
+}
+const duration=(a,b)=>(b-a)/minute;
+const total=c=>duration(c.received,c.arrived);
+const mean=values=>values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
+function median(values){const sorted=[...values].sort((a,b)=>a-b), middle=Math.floor(sorted.length/2);return sorted.length?(sorted[middle]+sorted[Math.floor((sorted.length-1)/2)])/2:null}
+const fmt=n=>n==null?'—':Number(n.toFixed(1)).toString();
+const stats=calls=>({count:calls.length,total:median(calls.map(total)),wait:mean(calls.map(c=>duration(c.received,c.dispatched))),travel:mean(calls.map(c=>duration(c.dispatched,c.arrived))),hit:calls.length?Math.round(100*calls.filter(c=>total(c)<=state.targets[c.priority]).length/calls.length):null});
+function table(headers,rows,empty='No matching records.'){
+ return rows.length?'<div class="table"><table><thead><tr>'+headers.map(h=>'<th scope="col">'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<p class="muted">'+empty+'</p>';
+}
+function overdue(c){return !c.arrived&&c.status!=='Closed'&&duration(c.received,Date.now())>state.targets[c.priority]}
+function button(label,kind,id){return '<button data-'+kind+'="'+safe(id)+'">'+label+'</button>'}
+function timeline(c){return '<details><summary>Timeline</summary>'+[['Received',c.received],['Dispatched',c.dispatched],['On scene',c.arrived],['Closed',c.closed],['Alert reviewed',c.ack]].filter(([,v])=>v!=null).map(([l,v])=>'<div>'+l+' · '+safe(when(v))+'</div>').join('')+'</details>'}
+function render(){
+ const records=classify(), clean=records.filter(r=>!r.issues.length).map(r=>r.c);
+ const active=clean.filter(c=>c.status!=='Closed').sort((a,b)=>priorities.indexOf(a.priority)-priorities.indexOf(b.priority)||a.received-b.received);
+ $('queue').innerHTML=table(['Call / location','Priority','Status','Response / target','Timeline','Actions'],active.map(c=>[
+  '<strong>'+safe(c.id)+'</strong><br>'+safe(c.type)+'<br><small>'+safe(c.site+' · '+c.location)+'</small>',
+  safe(c.priority),'<span class="tag">'+safe(c.status)+'</span>',
+  fmt(duration(c.received,c.arrived??Date.now()))+' / '+state.targets[c.priority]+' min'+(overdue(c)?'<br><span class="tag alert">'+(c.ack?'Overdue · reviewed':'Overdue')+'</span>':''),
+  timeline(c),button(({New:'Dispatch',Dispatched:'Mark on scene','On Scene':'Close call'})[c.status],'advance',c.id)+(overdue(c)&&!c.ack?button('Acknowledge','ack',c.id):'')
+ ]),'No active calls. Add a fictional call to begin.');
+ $('recent').innerHTML=table(['Call','Site','Response','Timeline'],clean.filter(c=>c.status==='Closed').sort((a,b)=>b.closed-a.closed).slice(0,6).map(c=>[safe(c.id),safe(c.site),fmt(total(c))+' min',timeline(c)]));
+ const filtered=records.filter(({c})=>filters.every(([id])=>!$('f-'+id).value||$('f-'+id).value===(id==='shift'?shift(c.received):id==='period'?(c.period||'Live demo'):c[id])));
+ const valid=filtered.filter(r=>!r.issues.length), arrived=valid.map(r=>r.c).filter(c=>c.arrived!=null), all=stats(arrived);
+ $('metrics').innerHTML=[['Valid calls',valid.length],['Median response',all.total==null?'—':fmt(all.total)+' min'],['Within demo target',all.hit==null?'—':all.hit+'%'],['Valid arrivals',all.count],['Quality exclusions',filtered.length-valid.length]].map(([label,value])=>'<div class="card"><small>'+label+'</small><div class="metric">'+value+'</div></div>').join('');
+ const groups=sites.filter(s=>!$('f-site').value||s===$('f-site').value).map(s=>[s,stats(arrived.filter(c=>c.site===s)),valid.filter(r=>r.c.site===s).length]);
+ const scale=Math.max(1,...groups.map(([,g])=>g.wait+g.travel));
+ $('benchmark').innerHTML=table(['Site','Calls','Valid arrivals','Median response','Within target','Avg. dispatch wait / travel'],groups.map(([s,g,count])=>[s,count,g.count,fmt(g.total),g.hit==null?'—':g.hit+'%',g.count?fmt(g.wait)+' / '+fmt(g.travel)+' min<div class="bars" aria-hidden="true"><span class="wait" style="width:'+100*g.wait/scale+'%"></span><span class="travel" style="width:'+100*g.travel/scale+'%"></span></div>':'—']));
+ const bad=records.filter(r=>r.issues.length);
+ $('issues').innerHTML='<p class="banner">'+bad.length+' of '+records.length+' source rows flagged. Flagged rows are excluded from operational metrics and retained in the CSV for review.</p>'+table(['Call ID','Site','Issue','Timeline'],bad.map(({c,issues})=>[safe(c.id),safe(c.site),safe(issues.join(', ')),timeline(c)]));
+ $('actions').innerHTML=table(['Action','Owner','Due','Success measure','Status'],state.actions.map((a,i)=>[safe(a.title),safe(a.owner),safe(a.due),safe(a.measure),'<select aria-label="Status for '+safe(a.title)+'" data-action="'+i+'">'+['Planned','In progress','Complete'].map(s=>'<option'+(s===a.status?' selected':'')+'>'+s+'</option>').join('')+'</select>']));
+ const cohort=clean.filter(c=>c.site==='Harbour Hospital'&&c.priority==='High'&&shift(c.received)==='Overnight'&&c.arrived!=null);
+ const phases=['Baseline','Pilot'].map(p=>{const calls=cohort.filter(c=>c.period===p);return [p,calls.length,fmt(median(calls.map(c=>duration(c.received,c.dispatched))))+' min',fmt(stats(calls).total)+' min']});
+ $('brief').innerHTML='<h3>Harbour Hospital overnight dispatch pilot</h3><p><strong>Finding.</strong> In the fictional baseline, high-priority calls spent more time waiting for dispatch than travelling to the scene on average.</p>'+table(['Simulated period','Valid arrivals','Median dispatch wait','Median response'],phases)+'<p><strong>Action.</strong> Test a single overnight routing queue. Review call volume and median dispatch wait weekly. Demo success measure is 5 minutes or less.</p><p class="muted">This comparison describes a simulated pilot. Call mix, staffing and site layout would need review before interpreting changes in a real service.</p>';
+}
+function view(id){
+ current=id;document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!==id);
+ document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.view===id)));
+}
+document.querySelector('nav').addEventListener('click',e=>{if(e.target.dataset.view)view(e.target.dataset.view)});
+$('scenario').onclick=()=>{for(const [id] of filters)$('f-'+id).value='';$('f-shift').value='Overnight';$('f-priority').value='High';$('f-period').value='Baseline';render()};
+$('intake').onsubmit=e=>{
+ e.preventDefault();const values=Object.fromEntries(new FormData(e.target));values.location=values.location.trim();if(!values.location){$('feedback').textContent='Enter a fictional location.';return}
+ const id='PS-'+String(state.next++).padStart(4,'0');
+ state.calls.push({...values,id,status:'New',received:Date.now(),period:'Live demo'});e.target.reset();save(id+' added to the queue.');
+};
+function targetForm(){
+ $('targets').innerHTML=priorities.map(p=>'<label>'+p+' (minutes)<input name="'+p+'" type="number" min="1" max="240" required value="'+state.targets[p]+'"></label>').join('')+'<button>Save thresholds</button>';
+}
+$('targets').onsubmit=e=>{e.preventDefault();for(const [p,v] of new FormData(e.target))state.targets[p]=Number(v);save('Demo thresholds updated.')};
+$('queue').onclick=e=>{
+ const {advance,ack}=e.target.dataset;if(!advance&&!ack)return;
+ const c=state.calls.find(c=>c.id===(advance||ack));if(!c)return;
+ if(ack&&overdue(c)&&!c.ack){c.ack=Date.now();save(c.id+' alert acknowledged.');return}
+ if(advance){const next=stages.indexOf(c.status)+1;if(next>=stages.length)return;c[['received','dispatched','arrived','closed'][next]]=Date.now();c.status=stages[next];save(c.id+' moved to '+c.status+'.')}
+};
+$('action').onsubmit=e=>{
+ e.preventDefault();const fields=Object.fromEntries(new FormData(e.target));
+ for(const field of ['title','owner','measure'])fields[field]=fields[field].trim();
+ if(!fields.title||!fields.owner||!fields.measure){$('feedback').textContent='Complete the action, owner and success measure.';return}
+ state.actions.push({...fields,status:'Planned'});e.target.reset();save('Improvement action added.');
+};
+$('actions').onchange=e=>{const i=e.target.dataset.action;if(i!==undefined){state.actions[i].status=e.target.value;save('Action status updated.');$('actions').querySelector('[data-action="'+i+'"]').focus()}};
+$('reset').onclick=()=>{if(!confirm('Restore the sample records and remove your demo changes?'))return;state=seed();$('intake').reset();$('action').reset();for(const [id] of filters)$('f-'+id).value='';targetForm();view('dispatch');save('Sample data restored.')};
+$('print').onclick=()=>window.print();
+const iso=t=>Number.isFinite(t)?new Date(t).toISOString():'';
+function csvCell(v){let raw=String(v??'');if(/^[\s]*[=+\-@]/.test(raw)&&typeof v==='string')raw="'"+raw;return '"'+raw.replaceAll('"','""')+'"'}
+$('csv').onclick=()=>{
+ const rows=[['Call ID','Site','Location','Type','Priority','Shift (local)','Period','Status','Received UTC','Dispatched UTC','Arrival UTC','Closed UTC','Alert acknowledged UTC','Dispatch wait minutes','Travel minutes','Total response minutes','Target minutes','Data quality issue']];
+ for(const {c,issues} of classify()){
+  const valid=!issues.length, arrived=valid&&c.arrived!=null;
+  rows.push([c.id,c.site,c.location,c.type,c.priority,shift(c.received),c.period||'Live demo',c.status,...[c.received,c.dispatched,c.arrived,c.closed,c.ack].map(iso),valid&&c.dispatched!=null?Number(duration(c.received,c.dispatched).toFixed(3)):'',arrived?Number(duration(c.dispatched,c.arrived).toFixed(3)):'',arrived?Number(total(c).toFixed(3)):'',state.targets[c.priority],issues.join('; ')]);
+ }
+ const url=URL.createObjectURL(new Blob(['\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
+ const a=document.createElement('a');a.href=url;a.download='protection-services-dispatch-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ $('feedback').textContent='CSV exported with '+state.calls.length+' source rows.';
+};
+view('dispatch');targetForm();render();
+setInterval(()=>{if(current==='dispatch'&&!$('queue').contains(document.activeElement)&&!$('queue').querySelector('details[open]'))render()},15000);
+</script></html>
