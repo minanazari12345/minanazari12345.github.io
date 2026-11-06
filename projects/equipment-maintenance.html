@@ -2,12 +2,116 @@
 .demo-section{scroll-margin-top:100px;background:#fff;border:1px solid var(--line);padding:clamp(1.5rem,4vw,3rem);margin:2.5rem 0}.demo-section h2{font-size:clamp(1.8rem,3vw,2.7rem)}.demo-brand{color:#0b7889;font-weight:700;letter-spacing:.08em}.demo-fields{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}.demo-fields label{display:block;font-weight:600}.demo-fields input,.demo-fields select,.demo-fields textarea{display:block;width:100%;margin-top:.4rem;padding:.8rem;font:inherit;color:var(--ink);background:#f5f7fa;border:1px solid #a8b3c1;border-radius:4px}.demo-fields .wide{grid-column:1/-1}.demo-actions{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:1.4rem}.demo-actions button{cursor:pointer}.demo-note{font-size:.9rem;color:var(--muted)}.demo-section :focus-visible{outline:3px solid #168598;outline-offset:3px}.demo-status{margin-top:1rem;color:#425064}.demo-email{overflow-wrap:anywhere}@media(max-width:620px){.demo-fields{grid-template-columns:1fr}}
 </style></head>
 <body class="project-page"><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="../index.html"><span class="brand-mark">MN</span><span>Mina Nazari</span></a><button class="menu-button" aria-expanded="false" aria-controls="primary-nav">Menu</button><nav id="primary-nav"><a href="../index.html#work">Projects</a><a href="../index.html#skills">Skills</a><a href="../index.html#about">About</a><a class="nav-cta" href="mailto:minanazari@gmail.com">Contact</a></nav></header>
-<main id="main"><section class="project-hero"><a class="back-link" href="../index.html#work">← All projects</a><p class="project-kicker">Asset tracking · Preventive maintenance</p><h1>Equipment Maintenance Management System</h1><p class="project-summary">A multi-site Excel/VBA tool that brings preventive-maintenance dates, service records, contracts, contacts, alerts, and reporting into one operational view.</p><div class="project-tags"><span>Excel</span><span>VBA</span><span>Reporting</span><span>Asset lifecycle</span></div><div class="hero-actions"><a class="button primary" href="#request-demo">Book a Free Walkthrough</a></div><p class="project-summary" style="font-size:1rem">TechEduHub · Setup, customization &amp; training for your business</p></section>
+<main id="main"><section class="project-hero"><a class="back-link" href="../index.html#work">← All projects</a><p class="project-kicker">Asset tracking · Preventive maintenance</p><h1>Equipment Maintenance Management System</h1><p class="project-summary">A multi-site Excel/VBA tool that brings preventive-maintenance dates, service records, contracts, contacts, alerts, and reporting into one operational view.</p><div class="project-tags"><span>Excel</span><span>VBA</span><span>Reporting</span><span>Asset lifecycle</span></div><div class="hero-actions"><a class="button primary" href="#interactive-demo">Try the Interactive Demo</a><a class="button" href="#request-demo">Book a Free Walkthrough</a></div><p class="project-summary" style="font-size:1rem">TechEduHub · Setup, customization &amp; training for your business</p></section>
 <div class="case-body"><section class="metric-row"><div class="metric"><strong>1</strong><span>centralized equipment register</span></div><div class="metric"><strong>Multi-site</strong><span>location and vendor filtering</span></div><div class="metric"><strong>Automated</strong><span>due reports and vendor emails</span></div></section>
 <section class="case-grid"><h2>The challenge</h2><div class="case-copy"><p>Maintenance dates, contracts, service reports, and vendor contacts can become difficult to monitor when stored separately. Missed visibility can lead to delayed follow-up and reactive work.</p></div></section>
 <section class="case-grid"><h2>My solution</h2><div class="case-copy"><p>I designed a structured dashboard with status logic, document access, reporting controls, and communication tools.</p><div class="process-steps"><div><strong>Track</strong>Equipment, serial numbers, sites, vendors, and next PM dates.</div><div><strong>Alert</strong>Identify overdue and upcoming maintenance at a glance.</div><div><strong>Act</strong>Generate reports and prepare vendor follow-up emails.</div></div></div></section>
 <section class="case-grid"><h2>Key capabilities</h2><div class="case-copy"><ul><li>Filters for location, vendor, and maintenance status</li><li>Links to service reports and contracts</li><li>Upcoming preventive-maintenance reporting</li><li>Vendor contact information and email-ready due reports</li><li>Color-coded status views designed for quick scanning</li></ul><p class="privacy-note">Portfolio descriptions use generalized workflow information only; operational records and internal documents remain private.</p></div></section>
-<section class="demo-section" id="request-demo" aria-labelledby="demo-heading">
+<section id="interactive-demo" class="demo-section" aria-labelledby="interactive-title">
+<p class="demo-brand">TRY IT · SAMPLE DATA</p>
+<h2 id="interactive-title">Equipment maintenance demo</h2>
+<p>Filter equipment, attach a sample document, and preview a vendor follow-up. Files stay in this browser tab. Changes reset when you reload.</p>
+<div class="demo-fields">
+<label>Site <select id="em-site"><option value="">All sites</option><option>North Campus</option><option>West Campus</option></select></label>
+<label>Maintenance status <select id="em-status"><option value="">All statuses</option><option>Overdue</option><option>Due soon</option><option>Current</option></select></label>
+<label class="wide">Equipment <select id="em-asset"></select></label>
+</div>
+<p id="em-summary" aria-live="polite"></p>
+<div class="demo-actions">
+<button class="button" type="button" data-em-document="Contract">Add contract</button>
+<button class="button" type="button" data-em-document="Service report">Add service report</button>
+<button class="button" type="button" id="em-email">Edit email settings</button>
+</div>
+<input id="em-file" type="file" hidden>
+<ul id="em-docs"></ul>
+<details id="em-settings"><summary>Email settings and preview</summary>
+<form id="em-form"><div class="demo-fields">
+<label>Vendor email <input type="email" id="em-to" value="service@example.com" required></label>
+<label>Subject <input id="em-subject" value="Preventive maintenance follow-up" required></label>
+<label class="wide">Email body <textarea id="em-body" rows="4" required>Hello, could you confirm availability for preventive maintenance on {equipment} at {site}? The scheduled date is {due}. Thank you.</textarea></label>
+</div>
+<p class="demo-note">Use {equipment}, {site}, {serial}, or {due} to insert details from the selected record.</p>
+<button class="button primary" id="em-preview-button">Preview email</button>
+</form>
+<pre id="em-preview" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite"></pre>
+</details>
+</section>
+<script>
+(() => {
+  const get = id => document.getElementById('em-' + id);
+  const assets = [
+    {name:'Instrument washer', serial:'DEMO-101', site:'North Campus', offset:-5, status:'Overdue'},
+    {name:'Steam sterilizer', serial:'DEMO-205', site:'West Campus', offset:10, status:'Due soon'},
+    {name:'Ultrasonic cleaner', serial:'DEMO-308', site:'North Campus', offset:65, status:'Current'}
+  ].map(asset => {
+    const date = new Date();
+    date.setDate(date.getDate() + asset.offset);
+    return {...asset, due:date.toLocaleDateString(), docs:[]};
+  });
+  const selected = () => assets.find(asset => asset.serial === get('asset').value);
+  const docButtons = document.querySelectorAll('[data-em-document]');
+  let pending;
+  function showAsset() {
+    const asset = selected();
+    get('summary').textContent = asset
+      ? [asset.serial, asset.site, asset.status, 'Next PM ' + asset.due].join(' · ')
+      : 'No equipment matches these filters.';
+    get('docs').replaceChildren();
+    get('preview').textContent = '';
+    for (const button of docButtons) button.disabled = !asset;
+    get('preview-button').disabled = !asset;
+    if (!asset) return;
+    for (const doc of asset.docs) {
+      const row = document.createElement('li');
+      row.textContent = doc.type + ' · ';
+      const link = document.createElement('a');
+      link.textContent = doc.name;
+      link.href = doc.url;
+      link.download = doc.name;
+      row.append(link);
+      get('docs').append(row);
+    }
+  }
+  function filter() {
+    const previous = get('asset').value;
+    const matches = assets.filter(asset => (!get('site').value || asset.site === get('site').value)
+      && (!get('status').value || asset.status === get('status').value));
+    get('asset').replaceChildren(...matches.map(asset => new Option(asset.name, asset.serial)));
+    if (matches.some(asset => asset.serial === previous)) get('asset').value = previous;
+    get('asset').disabled = !matches.length;
+    showAsset();
+  }
+  get('site').addEventListener('change', filter);
+  get('status').addEventListener('change', filter);
+  get('asset').addEventListener('change', showAsset);
+  for (const button of docButtons) button.addEventListener('click', () => {
+    pending = {asset:selected(), type:button.dataset.emDocument};
+    get('file').click();
+  });
+  get('file').addEventListener('change', () => {
+    const file = get('file').files[0];
+    if (file && pending?.asset) {
+      pending.asset.docs.push({type:pending.type, name:file.name, url:URL.createObjectURL(file)});
+      showAsset();
+    }
+    get('file').value = '';
+    pending = null;
+  });
+  get('email').addEventListener('click', () => {
+    get('settings').open = true;
+    get('to').focus();
+  });
+  get('form').addEventListener('submit', event => {
+    event.preventDefault();
+    const asset = selected();
+    if (!asset) return;
+    const fields = {equipment:asset.name, site:asset.site, serial:asset.serial, due:asset.due};
+    const fill = text => text.replace(/\{(equipment|site|serial|due)\}/g, (_, key) => fields[key]);
+    get('preview').textContent = ['To: ' + get('to').value, 'Subject: ' + fill(get('subject').value), '', fill(get('body').value)].join('\n');
+  });
+  filter();
+})();
+</script><section class="demo-section" id="request-demo" aria-labelledby="demo-heading">
 <p class="demo-brand">TechEduHub · By Mina Nazari</p>
 <h2 id="demo-heading">Book a Free Walkthrough</h2>
 <p>Interested in an equipment-maintenance tracker configured for your business? Book a free 15–20-minute walkthrough to ask questions and explore how the tracker could fit your equipment and workflow. We can discuss setup, importing your existing equipment list, customization, and training.</p>
